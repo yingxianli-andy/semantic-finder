@@ -128,6 +128,7 @@ def _update_opinions_torch(
     device: str = "cuda",
     intervention_dict: Optional[Dict[int, float]] = None,
     cached_adj_matrix: Optional["torch.sparse.FloatTensor"] = None,
+    intervention_beta: float = 0.5,
 ) -> nx.Graph:
     """
     使用 PyTorch（可在 GPU 上）更新观点值。
@@ -178,9 +179,10 @@ def _update_opinions_torch(
     for _ in range(steps):
         if model == "degroot":
             if intervention_vector is not None:
-                # 新公式：x(t+1) = alpha * x(t) + (1-alpha) * (A_norm * x(t) + Intervention)
+                # 新公式：x(t+1) = alpha * x(t) + (1-alpha) * (A_norm * x(t) + beta * Intervention)
+                # 引入强度系数beta，避免干预过强导致数值溢出
                 neighbor_influence = torch.sparse.mm(a_norm, x.unsqueeze(1)).squeeze(1)
-                total_influence = neighbor_influence + intervention_vector
+                total_influence = neighbor_influence + intervention_beta * intervention_vector
                 x = alpha * x + (1.0 - alpha) * total_influence
             else:
                 # 原公式：x(t+1) = A_norm * x(t)
@@ -218,6 +220,7 @@ def update_opinions(
     intervention_dict: Optional[Dict[int, float]] = None,
     cached_adj_matrix: Optional[any] = None,
     cached_adj_matrix_torch: Optional["torch.sparse.FloatTensor"] = None,
+    intervention_beta: float = 0.5,
 ) -> nx.Graph:
     """
     更新图中所有节点的观点值（使用观点动力学模型）。
@@ -233,8 +236,11 @@ def update_opinions(
             使用 GPU 加速的实现。
         intervention_dict: 干预字典 {节点ID: 干预权重}，用于新公式
             - 如果提供，DeGroot 变体将使用新公式：
-              x(t+1) = alpha * x(t) + (1-alpha) * (A_norm * x(t) + Intervention)
+              x(t+1) = alpha * x(t) + (1-alpha) * (A_norm * x(t) + beta * Intervention)
             - 如果为 None，使用原公式（向后兼容）
+        intervention_beta: 干预强度系数（默认0.5）
+            - 用于控制干预项的强度，避免数值溢出
+            - beta=0.5 表示干预强度为原始权重的一半
 
     Returns:
         updated_graph: 更新后的图（当前实现直接在原图上就地修改并返回）
@@ -250,6 +256,7 @@ def update_opinions(
                 device=device,
                 intervention_dict=intervention_dict,
                 cached_adj_matrix=cached_adj_matrix_torch,
+                intervention_beta=intervention_beta,
             )
         except Exception as e:
             # 出现任何问题时回退到原始 CPU 实现，保证鲁棒性
@@ -296,9 +303,10 @@ def update_opinions(
     for _ in range(steps):
         if model == "degroot":
             if intervention_vector is not None:
-                # 新公式：x(t+1) = alpha * x(t) + (1-alpha) * (A_norm * x(t) + Intervention)
+                # 新公式：x(t+1) = alpha * x(t) + (1-alpha) * (A_norm * x(t) + beta * Intervention)
+                # 引入强度系数beta，避免干预过强导致数值溢出
                 neighbor_influence = a_norm @ x
-                total_influence = neighbor_influence + intervention_vector
+                total_influence = neighbor_influence + intervention_beta * intervention_vector
                 x = alpha * x + (1.0 - alpha) * total_influence
             else:
                 # 原公式：x(t+1) = A_norm * x(t)
