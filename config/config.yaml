@@ -1,0 +1,63 @@
+# 项目配置
+project:
+  name: "Semantic-FINDER"
+  version: "1.0.0"
+
+# 数据配置
+data:
+  synthetic:
+    n_nodes: 50
+    graph_type: "BA"
+  real:
+    dataset_name: "ego-Twitter" # For testing
+    data_path: "data/raw/"
+
+# 环境配置
+environment:
+  budget: 10
+  dynamics_model: "degroot"
+  dynamics_steps: 3
+  fj_alpha: 0.5 # Friedkin-Johnsen 参数
+
+# Agent 配置
+agent:
+  encoder_type: "GraphSAGE"
+  input_dim: 2 # degree + opinion
+  hidden_dim: 128
+  output_dim: 128
+  num_layers: 2
+  learning_rate: 0.001
+  batch_size: 32
+  gamma: 0.99
+  replay_buffer_size: 10000
+
+# 探索策略
+exploration:
+  epsilon_start: 1.0
+  epsilon_end: 0.01
+  epsilon_decay: 0.995
+
+# LLM 配置
+llm:
+  model_name: "Qwen/Qwen-7B" # Placeholder
+  device: "cuda"
+  use_llm_in_training: false
+  use_llm_in_testing: true
+
+# 奖励函数配置
+reward:
+  method: "variance" # "variance", "weighted_disagreement", "echo_chamber"
+
+# 训练配置
+training:
+  num_episodes: 10000
+  save_frequency: 100
+  log_frequency: 10
+  checkpoint_dir: "results/models"
+  device: "cpu" # Default to cpu, can be overridden by command line
+
+# 测试配置
+testing:
+  n_runs: 10
+  output_dir: "results/test/"
+

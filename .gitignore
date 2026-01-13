@@ -1,0 +1,111 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# 实验结果（太大，不上传）
+results/
+*.json
+*.jsonl
+*.pkl
+*.pth
+*.pt
+*.ckpt
+*.log
+*.png
+*.jpg
+*.pdf
+
+# 数据文件（太大，不上传）
+data/raw/
+data/processed/
+data/synthetic/
+*.edgelist
+*.txt.gz
+*.gz
+
+# 缓存文件
+*.cache
+.cache/
+graph_cache_*.pkl
+
+# 临时文件
+*.tmp
+*.bak
+*.backup
+*_backup_*
+*_recovered.*
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 日志文件
+*.log
+logs/
+
+# 测试覆盖率
+.coverage
+htmlcov/
+.pytest_cache/
+
+# 模型文件（太大，不上传）
+models/
+*.pth
+*.pt
+*.ckpt
+*.h5
+*.hdf5
+
+# 压缩包
+*.tar.gz
+*.zip
+*.rar
+
+# 实验输出
+output/
+figures/
+plots/
+
+# 但保留一些重要的文档和配置示例
+!doc/**/*.md
+!doc/**/*.tex
+!config/*.yaml.example
+!config/*.yml.example
+

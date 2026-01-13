@@ -1,0 +1,21 @@
+开始训练...
+设备: cpu
+图类型: BA, 节点数: 20
+预算: 3, 奖励方法: variance
+总轮数: 5
+--------------------------------------------------
+Training:   0%|          | 0/5 [00:00<?, ?it/s]Training: 100%|██████████| 5/5 [00:00<00:00, 213.03it/s]
+
+Episode 2/5
+  平均奖励: 0.6411
+  平均损失: 0.0000
+  探索率: 0.9900
+  检查点已保存: results/models/checkpoint_episode_2.pth
+
+Episode 4/5
+  平均奖励: 0.6383
+  平均损失: 0.0000
+  探索率: 0.9801
+  检查点已保存: results/models/checkpoint_episode_4.pth
+
+训练完成！最终模型已保存: results/models/final_model.pth

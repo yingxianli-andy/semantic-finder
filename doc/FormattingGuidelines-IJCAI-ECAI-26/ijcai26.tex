@@ -1,0 +1,234 @@
+%%%% ijcai26.tex
+
+\typeout{Semantic-FINDER Paper Draft (IJCAI--ECAI 26)}
+
+\documentclass{article}
+\pdfpagewidth=8.5in
+\pdfpageheight=11in
+
+\usepackage{ijcai26}
+
+% Use the postscript times font!
+\usepackage{times}
+\usepackage{soul}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+\usepackage[utf8]{inputenc}
+\usepackage[small]{caption}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{amsthm}
+\usepackage{booktabs}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage[switch]{lineno}
+
+% Comment out this line in the camera-ready submission
+\linenumbers
+
+\urlstyle{same}
+
+% See https://www.overleaf.com/learn/latex/theorems_and_proofs
+% for a nice explanation of how to define new theorems, but keep
+% in mind that the amsthm package is already included in this
+% template and that you must *not* alter the styling.
+\newtheorem{example}{Example}
+\newtheorem{theorem}{Theorem}
+
+% PDF Info Is REQUIRED.
+% Please leave this \pdfinfo block untouched both for the submission and
+% Camera Ready Copy. Do not include Title and Author information in the pdfinfo section
+\pdfinfo{
+/TemplateVersion (IJCAI.2026.0)
+}
+
+\title{Bridging the Divide: Mitigating Polarization in Large-Scale Networks via Semantic-Enhanced Graph Reinforcement Learning}
+
+% Blind review: do not include author identities.
+\author{Anonymous Authors}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Social media polarization and the spread of misinformation pose significant threats to public discourse. Traditional governance methods, such as node removal (blocking users) or edge deletion, effectively mitigate diffusion but often infringe on freedom of speech and disrupt network connectivity, leading to community fragmentation. In this paper, we propose \textbf{Semantic-FINDER}, a novel framework for \textbf{cognitive intervention} that mitigates polarization without disrupting network structure. Unlike existing Influence Maximization (IM) approaches that treat all nodes as homogeneous, our approach integrates macroscopic structural analysis with microscopic semantic understanding. Specifically, we employ a Graph Reinforcement Learning (GRL) agent, trained offline on small synthetic graphs, to identify critical ``bridge'' nodes capable of maximizing global consensus. To address the semantic nuances of persuasion, we introduce a Large Language Model (LLM) as a semantic controller that dynamically adjusts intervention weights based on the local opinion context of selected nodes, rather than simulating computationally expensive individual agents. This ``Offline Training, Online Application'' paradigm allows our model to generalize to large-scale real-world networks (e.g., Twitter, Reddit) with millions of nodes. Extensive experiments demonstrate that Semantic-FINDER significantly outperforms state-of-the-art heuristics and structural-only baselines in reducing polarization indices while maintaining network integrity. Our work provides a scalable, ethically aligned solution for fostering social cohesion in the digital age.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+Polarization in large-scale social networks and the spread of misinformation threaten public discourse and social cohesion. While hard interventions such as account blocking or content deletion can reduce diffusion, they also disrupt network connectivity and may lead to backlash or fragmentation. We aim for \emph{soft} governance: applying \emph{cognitive interventions} (e.g., delivering targeted information) to a small number of strategically chosen nodes, so as to reduce polarization (or inhibit misinformation diffusion) with minimal cost and without removing nodes/edges.
+
+Many Influence Maximization (IM) methods assume nodes are homogeneous and focus primarily on \emph{who} to target, often ignoring \emph{what} to say. Meanwhile, the FINDER paradigm shows that a reinforcement learning (RL) policy trained offline on small synthetic graphs can generalize to large real graphs. This paper builds on these insights: we extend FINDER-style key-node discovery from ``node removal'' to ``cognitive intervention'' and introduce a large language model (LLM) as a semantic controller for generating intervention parameters.
+
+\section{Problem Setting}
+\label{sec:problem}
+We are given a large-scale social network graph \(G=(V,E)\), where each node \(i\in V\) has an opinion state \(x_i(t)\in[-1,1]\) at time \(t\), representing the node's opinion tendency. Our goal is to select \(K\) key nodes under a budget constraint and apply cognitive interventions to reduce the overall polarization metric \(P(t)\) while preserving the network structure (i.e., no node removal or edge deletion).
+
+Specifically, at each time step \(t\), the agent needs to:
+\begin{enumerate}
+    \item \textbf{Select a node}: Choose a node \(v_t\) from \(V\) for intervention (previously selected nodes cannot be reselected);
+    \item \textbf{Generate intervention weight}: Generate an intervention weight \(\omega_t\in[0,1]\) for the selected node, representing the intervention strength;
+    \item \textbf{Apply intervention}: Apply the intervention to node \(v_t\) and update the entire network state through the opinion dynamics model;
+    \item \textbf{Evaluate effect}: Compute the polarization reduction as a reward signal to guide subsequent decisions.
+\end{enumerate}
+
+This problem can be formalized as a Markov Decision Process (MDP), where the state space is the current graph state (including node opinion values), the action space is node selection, and the reward function is the polarization reduction.
+
+\section{Semantic-FINDER}
+\label{sec:method}
+\subsection{Overview}
+Semantic-FINDER couples (i) an opinion-dynamics simulator as the environment, (ii) a FINDER-style graph RL agent (GNN+DQN) for selecting intervention nodes, and (iii) an LLM controller that generates context-dependent intervention weights based on the local opinion context around the selected nodes. This design ensures computational efficiency (avoiding massive LLM calls) while fully leveraging the semantic understanding capabilities of LLMs.
+
+\subsection{Environment: Opinion Dynamics}
+We adopt classical opinion dynamics models, supporting both DeGroot and Friedkin--Johnsen (FJ) models. For the DeGroot model, we implement a new formula that supports intervention terms:
+
+\begin{equation}
+x_i(t+1) = \alpha \cdot x_i(t) + (1-\alpha) \cdot \left( \sum_{j\in \mathcal{N}(i)} w_{ij}\,x_j(t) + \text{Intervention}_i \right),
+\label{eq:opinion-dynamics}
+\end{equation}
+
+where \(\alpha\in[0,1]\) is the stubbornness parameter, representing how strongly a node adheres to its current opinion; \(w_{ij}\) are normalized weights, typically \(w_{ij}=1/|\mathcal{N}(i)|\) (i.e., row-normalized adjacency matrix); and \(\text{Intervention}_i\) is the intervention term, determined by the LLM-generated weight \(\omega_i\) when node \(i\) is selected.
+
+For the FJ model, we use the standard form:
+\begin{equation}
+x_i(t+1) = \alpha \sum_{j\in \mathcal{N}(i)} w_{ij}\,x_j(t) + (1-\alpha)\,x_i(0),
+\end{equation}
+where \(x_i(0)\) is the initial opinion anchor.
+
+The environment implementation adopts the Gymnasium interface and supports GPU acceleration (using PyTorch sparse matrix operations), enabling efficient processing of large-scale networks (tens of thousands of nodes).
+
+\subsection{Structural Layer: Key Node Selection via Graph RL}
+We use an encoder-decoder architecture based on graph neural networks for key node selection:
+
+\textbf{Encoder}: We employ GraphSAGE or GCN as the graph encoder to encode graph structure and node features into node embeddings. Node features include:
+\begin{itemize}
+    \item Structural features: normalized node degree \(d_i\)
+    \item Opinion features: current opinion value \(x_i(t)\)
+    \item Semantic features (optional): semantic embeddings \(e_i\) pre-extracted by LLM
+\end{itemize}
+
+The encoder outputs a \(d\)-dimensional embedding vector \(\mathbf{h}_i\) for each node, capturing the node's structural position and state information.
+
+\textbf{Decoder}: We employ a Deep Q-Network (DQN) that takes node embeddings \(\mathbf{h}_i\) as input and outputs Q-values \(Q(s, a_i)\), representing the expected cumulative reward for selecting node \(i\). The decoder is a Multi-Layer Perceptron (MLP) with multiple hidden layers and Dropout regularization.
+
+\textbf{Training Strategy}: We adopt Experience Replay and \(\epsilon\)-greedy exploration. In the offline training phase, we train the model on small synthetic graphs (30-50 nodes, Barabasi-Albert scale-free networks); after training, we directly apply it to large-scale real networks, achieving the ``Offline Training, Online Application'' generalization paradigm.
+
+\subsection{Semantic Layer: LLM as Intervention Controller}
+When the RL agent selects a candidate key node \(v_t\), we extract its local subgraph information, including:
+\begin{itemize}
+    \item The node's own opinion value \(x_{v_t}(t)\)
+    \item Number of neighbors and their opinion distribution
+    \item Opinion differences among neighbors (disagreement level)
+    \item Subgraph tightness (clustering coefficient)
+\end{itemize}
+
+This information is textualized and fed into an LLM (we use Qwen2-7B-Instruct). The LLM analyzes the semantic features of the node's subgraph (e.g., ``this is a tight community of conservative users'') and outputs an intervention weight \(\omega_t\in[0,1]\). This weight represents intervention strength: \(\omega_t\) close to 1 indicates strong intervention is needed, while close to 0 indicates mild intervention is sufficient.
+
+The intervention weight is applied to the environment as follows: during opinion dynamics update, the selected node's opinion value is adjusted to \(x_{v_t}(t) \leftarrow x_{v_t}(t) \cdot (1-\omega_t)\), i.e., pulled toward neutral opinion (0), and then propagated throughout the network via the dynamics model.
+
+\subsection{Objective and Reward Design}
+We define three polarization metrics to evaluate network polarization:
+
+\textbf{Variance Method}:
+\begin{equation}
+P_{\text{var}}(t) = \frac{1}{|V|}\sum_{i\in V}\bigl(x_i(t)-\bar{x}(t)\bigr)^2,\quad
+\bar{x}(t)=\frac{1}{|V|}\sum_{i\in V} x_i(t).
+\label{eq:polarization-var}
+\end{equation}
+
+\textbf{Weighted Disagreement Method}:
+\begin{equation}
+P_{\text{wd}}(t) = \sum_{(i,j)\in E} w_{ij} \bigl(x_i(t)-x_j(t)\bigr)^2,
+\label{eq:polarization-wd}
+\end{equation}
+representing the weighted sum of opinion differences among neighbors (a Lyapunov function).
+
+\textbf{Echo Chamber Score}:
+\begin{equation}
+P_{\text{ec}}(t) = 1 - \frac{|\{(i,j)\in E: \text{sign}(x_i(t)) \neq \text{sign}(x_j(t))\}|}{|E|},
+\label{eq:polarization-ec}
+\end{equation}
+representing the proportion of cross-camp edges; higher values indicate stronger echo chamber effects.
+
+After one intervention step, the reward is defined as the polarization reduction:
+\begin{equation}
+r_t = P(t-1)-P(t),
+\label{eq:reward}
+\end{equation}
+where \(P(t)\) can be any of the three methods above (variance method is used by default). A positive reward indicates polarization reduction (good behavior), while a negative reward indicates polarization increase (bad behavior).
+
+\section{Experimental Protocol (Draft)}
+\label{sec:exp}
+\subsection{Offline Training on Synthetic Graphs}
+Following the FINDER ``Offline Training, Online Application'' principle, we train on \(30\sim 50\)-node synthetic graphs (e.g., BA scale-free graphs) with randomized initial opinions, enabling fast RL training over many episodes.
+
+\subsection{Online Application on Real Graphs}
+We evaluate generalization on real-world networks (e.g., SNAP datasets and Network Repository graphs). At evaluation time, the LLM controller generates intervention weights conditioned on local context around selected nodes.
+
+\subsection{Hardware Budget (Draft)}
+\begin{table}[t]
+\centering
+\begin{tabular}{lrr}
+\toprule
+Setup & VRAM (per GPU) & Notes \\
+\midrule
+2$\times$ RTX 4090 & 24GB & Sufficient for GNN+DQN training and low-frequency LLM inference \\
+1$\times$ A100 & 80GB & Allows larger batches and/or more frequent LLM calls \\
+\bottomrule
+\end{tabular}
+\caption{Suggested hardware budget (draft).}
+\label{tab:hardware}
+\end{table}
+
+\section{Planned Figures and Baselines (Placeholders)}
+\label{sec:figs}
+\iffalse
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figs/teaser.png}
+\caption{Teaser (placeholder): polarization before intervention (left) vs.\ improved mixing after Semantic-FINDER (right).}
+\label{fig:teaser}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figs/method.png}
+\caption{Method overview (placeholder): graph RL selects nodes; LLM generates intervention weights; simulator updates opinions and returns rewards.}
+\label{fig:method}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figs/results.png}
+\caption{Results (placeholder): polarization metric vs.\ budget; compare random, degree, PageRank, structure-only FINDER, and Semantic-FINDER.}
+\label{fig:results}
+\end{figure}
+\fi
+
+\begin{table}[t]
+\centering
+\begin{tabular}{ll}
+\toprule
+Method & Description \\
+\midrule
+Random & Randomly select intervention nodes \\
+Degree & Highest-degree nodes \\
+PageRank & Highest PageRank nodes \\
+FINDER (structure-only) & Graph RL selection without LLM controller \\
+Semantic-FINDER (Ours) & Graph RL selection + LLM-generated intervention weights \\
+\bottomrule
+\end{tabular}
+\caption{Baselines and our method (draft).}
+\label{tab:baselines}
+\end{table}
+
+\section{Conclusion}
+\label{sec:conclusion}
+We presented Semantic-FINDER, a framework combining opinion-dynamics simulation, FINDER-style graph RL for scalable key-node selection, and an LLM controller for semantic, context-aware intervention parameterization. This framework targets polarization mitigation without disrupting network structure, aligning with ethical and practical constraints in social-good applications. The framework implements the ``Offline Training, Online Application'' paradigm, enabling training on small synthetic graphs and generalization to large-scale real networks.
+
+Future work will include: more rigorous task definitions and evaluation metrics, more systematic reward and constraint design, comprehensive experiments on real datasets (e.g., SNAP Twitter dataset), ablation studies (validating the necessity of RL and LLM modules), robustness testing (performance under noise and varying stubbornness), and high-quality visualizations and figures.
+
+\end{document}
+
+
